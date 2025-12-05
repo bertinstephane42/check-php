@@ -646,40 +646,113 @@ function scan_project($root) {
                 ];
             }
 
-			// Heuristique AST : die() avec variable concaténée
-			if (preg_match('/die\s*\(\s*\$[^)]*\./i', $line)) {
-				$results[] = [
-					'file'      => $path,
-					'line'      => $lineNumber + 1,
-					'excerpt'   => $trimmedLine,
-					'severity'  => 'medium',
-					'message'   => 'die() utilise une concaténation — message potentiellement sensible.',
-					'id'        => 'DIE_CONCAT_WARNING',
-					'size'      => $fileSize
-				];
-			}
+            // ============================================
+            // Heuristique AST : include/require dynamique avec entrée utilisateur
+            // ============================================
+            if (preg_match('/\b(include|require|include_once|require_once)\s*\(\s*\$[^\)]+\)/i', $line) &&
+                preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
 
-			// Heuristique AST : echo $_SESSION + variable dynamique
-			if (preg_match('/echo\s*\$_SESSION\[[^\]]*\]/i', $line) &&
-				preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
-
-				$results[] = [
-					'file'      => $path,
-					'line'      => $lineNumber + 1,
-					'excerpt'   => $trimmedLine,
-					'severity'  => 'high',
-					'message'   => 'Affichage d’une donnée de session indexée par entrée utilisateur.',
-					'id'        => 'SESSION_INDEXED_BY_USER_INPUT',
-					'size'      => $fileSize
-				];
-			}
-
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'critical',
+                    'message'   => 'Include/Require dynamique avec entrée utilisateur — risque RFI/LFI.',
+                    'id'        => 'DYNAMIC_INCLUDE_USER',
+                    'size'      => $fileSize
+                ];
+            }
 
             // ============================================
-            // Heuristique bonus : détection SQLi simple
+            // Heuristique AST : preg_replace avec /e
+            // ============================================
+            if (preg_match('/preg_replace\s*\(.*[\'"]\/e[\'"].*\)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'high',
+                    'message'   => 'Usage de preg_replace avec /e — exécution de code arbitraire possible.',
+                    'id'        => 'PREG_REPLACE_E',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Heuristique AST : shell_exec, exec, system, passthru avec variable utilisateur
+            // ============================================
+            if (preg_match('/\b(shell_exec|exec|system|passthru)\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+                $duplicate = false;
+                foreach ($results as $r) {
+                    if ($r['file'] === $path && $r['line'] === $lineNumber + 1 && $r['id'] === 'RCE_HEURISTIC') {
+                        $duplicate = true; break;
+                    }
+                }
+                if (!$duplicate) {
+                    $results[] = [
+                        'file'      => $path,
+                        'line'      => $lineNumber + 1,
+                        'excerpt'   => $trimmedLine,
+                        'severity'  => 'critical',
+                        'message'   => 'Exécution de commande système avec donnée utilisateur — risque RCE.',
+                        'id'        => 'RCE_HEURISTIC',
+                        'size'      => $fileSize
+                    ];
+                }
+            }
+
+            // ============================================
+            // Heuristique AST : unserialize() sur entrée externe
+            // ============================================
+            if (preg_match('/unserialize\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'critical',
+                    'message'   => 'Unserialize de donnée externe — risque d’object injection.',
+                    'id'        => 'UNSERIALIZE_EXTERNAL',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Heuristique AST : die() avec concaténation
+            // ============================================
+            if (preg_match('/die\s*\(\s*\$[^)]*\./i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'medium',
+                    'message'   => 'die() utilise une concaténation — message potentiellement sensible.',
+                    'id'        => 'DIE_CONCAT_WARNING',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Heuristique AST : echo $_SESSION indexé par entrée utilisateur
+            // ============================================
+            if (preg_match('/echo\s*\$_SESSION\[[^\]]*\]/i', $line) &&
+                preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'high',
+                    'message'   => 'Affichage d’une donnée de session indexée par entrée utilisateur.',
+                    'id'        => 'SESSION_INDEXED_BY_USER_INPUT',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Heuristique AST : SQLi simple
             // ============================================
             if (preg_match('/\b(SELECT|INSERT|UPDATE|DELETE)\b/i', $line) &&
-                preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+                preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line) &&
+                !preg_match('/prepare|bind_param/i', $line)) {
                 $results[] = [
                     'file'      => $path,
                     'line'      => $lineNumber + 1,
@@ -687,6 +760,100 @@ function scan_project($root) {
                     'severity'  => 'high',
                     'message'   => 'Construction dynamique de requête SQL avec données utilisateur',
                     'id'        => 'SQLI_HEURISTIC',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Heuristique XSS simple
+            // ============================================
+            if (preg_match('/\b(echo|print|printf|die|exit)\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'high',
+                    'message'   => 'Données utilisateur affichées sans filtration — risque XSS.',
+                    'id'        => 'XSS_UNFILTERED',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // CSRF manquant sur formulaire POST
+            // ============================================
+            if (preg_match('/<form.*method\s*=\s*["\']?post["\']?/i', $line) &&
+                !preg_match('/csrf_token/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'medium',
+                    'message'   => 'Formulaire POST sans protection CSRF détectée.',
+                    'id'        => 'CSRF_MISSING',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Hashage faible détecté
+            // ============================================
+            if (preg_match('/\b(md5|sha1)\s*\(/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'high',
+                    'message'   => 'Hashage non sécurisé détecté (md5/sha1).',
+                    'id'        => 'WEAK_PASSWORD_HASH',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Affichage ou suppression d’erreurs
+            // ============================================
+            if (preg_match('/error_reporting\s*\(\s*0\s*\)/i', $line) ||
+                preg_match('/ini_set\s*\(\s*[\'"]display_errors[\'"]\s*,\s*1\s*\)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'medium',
+                    'message'   => 'Affichage ou suppression d’erreurs potentiellement dangereux.',
+                    'id'        => 'ERROR_DISPLAY',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Session démarrée sans session_regenerate_id()
+            // ============================================
+            if (preg_match('/session_start\s*\(\s*\)/i', $line) &&
+                !preg_match('/session_regenerate_id\s*\(\s*true\s*\)/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'medium',
+                    'message'   => 'Session démarrée sans régénération d’ID — risque fixation session.',
+                    'id'        => 'SESSION_FIXED',
+                    'size'      => $fileSize
+                ];
+            }
+
+            // ============================================
+            // Upload de fichier non sécurisé
+            // ============================================
+            if (preg_match('/move_uploaded_file\s*\(/i', $line) &&
+                !preg_match('/\.(jpg|png|gif|pdf)$/i', $line)) {
+                $results[] = [
+                    'file'      => $path,
+                    'line'      => $lineNumber + 1,
+                    'excerpt'   => $trimmedLine,
+                    'severity'  => 'high',
+                    'message'   => 'Upload de fichier potentiellement non filtré — risque RFI/malware.',
+                    'id'        => 'FILE_UPLOAD_UNCHECKED',
                     'size'      => $fileSize
                 ];
             }
