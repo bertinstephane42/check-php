@@ -104,6 +104,26 @@ echo "<div style='display:inline-block; padding:8px 12px; margin-top:10px; backg
         <p>
             Cette fonctionnalité vous permet de contrôler la confidentialité et la disponibilité de vos rapports générés.
         </p>
+
+        <!-- Encadré OWASP 2021 -->
+        <div style="margin-top:20px; padding:15px; border:1px solid #ccc; border-radius:5px; background-color:#f9f9f9;">
+            <h3>Introduction à OWASP 2021</h3>
+            <p>
+                OWASP (Open Web Application Security Project) publie régulièrement une liste des risques de sécurité majeurs pour les applications web. 
+                La version 2021 identifie les 10 principales vulnérabilités auxquelles il faut être attentif, comme l’injection, la mauvaise gestion de l’authentification, ou l’exposition de données sensibles.
+            </p>
+            <p>
+                Comprendre et utiliser OWASP 2021 permet aux développeurs et aux analystes de :
+            </p>
+            <ul>
+                <li>Identifier et prioriser les failles critiques dans les applications.</li>
+                <li>Mettre en place des pratiques de codage sécurisées.</li>
+                <li>Réduire les risques d’exploitation par des attaquants.</li>
+            </ul>
+            <p>
+                Dans le cadre de ce TP, le rapport généré vous aide à détecter certaines vulnérabilités alignées avec OWASP 2021 pour apprendre à les corriger.
+            </p>
+        </div>
     </div>
 </div>
 
