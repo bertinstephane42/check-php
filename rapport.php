@@ -116,8 +116,8 @@ input, select { padding: 5px; margin: 5px; font-size: 1rem; }
 <h1>Rapport d'audit PHP - OWASP 2021</h1>
 
 <p>
-    <a href="<?= htmlspecialchars('rapports/' . basename($_GET['file'])) ?>" download="<?= htmlspecialchars(basename($_GET['file'])) ?>">
-        <button type="button">Télécharger le rapport JSON</button>
+    <a id="downloadLink" href="<?= htmlspecialchars('rapports/' . basename($_GET['file'])) ?>" download="<?= htmlspecialchars(basename($_GET['file'])) ?>">
+        <button type="button" id="downloadBtn">Télécharger le rapport JSON</button>
     </a>
     <a href="index.php">
         <button type="button">Retour à l'accueil</button>
@@ -264,27 +264,39 @@ helpModal.addEventListener('click', (e) => {
 });
 
 // ------------------------------------------------------
-// Supprime le rapport JSON après le clic sur "Télécharger"
+// Gestion du téléchargement et suppression conditionnelle
 // ------------------------------------------------------
 const downloadBtn = document.querySelector('a[href$="<?= addslashes(basename($_GET['file'])) ?>"] button');
 const reportFile = "<?= addslashes(basename($_GET['file'])) ?>";
 
-if (downloadBtn && localStorage.getItem('delete_json') === '1') {
+// Vérifie si la case "Supprimer le rapport" est cochée au moment du clic
+if (downloadBtn) {
     downloadBtn.addEventListener('click', () => {
-        fetch('delete_report.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'file=' + encodeURIComponent(reportFile)
-        })
-        .then(response => {
-            if (response.ok) {
-                console.log('Rapport supprimé sur le serveur après téléchargement.');
-                localStorage.removeItem('delete_json');
-            } else {
-                console.error('Erreur lors de la suppression du rapport.');
-            }
-        })
-        .catch(err => console.error('Erreur lors de la suppression :', err));
+        const deleteJson = localStorage.getItem('delete_json') === '1';
+
+        if (deleteJson) {
+            // Désactive le bouton après le clic
+            downloadBtn.disabled = true;
+            downloadBtn.style.opacity = 0.5;
+            downloadBtn.title = "Le rapport a été téléchargé et sera supprimé du serveur.";
+
+            // Suppression côté serveur
+            fetch('delete_report.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'file=' + encodeURIComponent(reportFile)
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Rapport supprimé sur le serveur après téléchargement.');
+                    localStorage.removeItem('delete_json');
+                } else {
+                    console.error('Erreur lors de la suppression du rapport.');
+                }
+            })
+            .catch(err => console.error('Erreur lors de la suppression :', err));
+        }
+        // Sinon, le bouton reste actif et le téléchargement se fait normalement
     });
 }
 </script>

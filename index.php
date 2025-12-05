@@ -72,10 +72,12 @@ echo "<div style='display:inline-block; padding:8px 12px; margin-top:10px; backg
     <input type="file" id="zipfile" name="zipfile" accept=".zip" required>
     <input type="hidden" name="token" value="<?php echo $_SESSION['upload_token']; ?>">
     
-    <div style="margin:10px 0;">
-        <input type="checkbox" id="delete_report" name="delete_report">
-        <label for="delete_report">Supprimer le rapport du serveur après téléchargement</label>
-    </div>
+	<div style="margin:10px 0;">
+		<label for="delete_report">
+			<input type="checkbox" id="delete_report" name="delete_report" checked>
+			Supprimer le rapport du serveur après téléchargement
+		</label>
+	</div>
 
     <button type="submit">Analyser le projet</button>
     <button type="button" id="helpBtn">Aide</button>
@@ -140,11 +142,15 @@ window.onclick = (e) => { if(e.target === modal) modal.style.display = 'none'; }
 // Gestion du stockage local pour la case à cocher
 const deleteCheckbox = document.getElementById('delete_report');
 
-// Initialiser la checkbox en fonction du localStorage
-if (localStorage.getItem('delete_json') === '1') {
+// Initialiser la checkbox en fonction du localStorage ou de l'état par défaut
+if (localStorage.getItem('delete_json') === '1' || deleteCheckbox.checked) {
     deleteCheckbox.checked = true;
+    localStorage.setItem('delete_json', '1'); // synchronise le localStorage avec le comportement par défaut
+} else {
+    deleteCheckbox.checked = false;
 }
 
+// Écouteur de changement
 deleteCheckbox.addEventListener('change', () => {
     if (deleteCheckbox.checked) {
         localStorage.setItem('delete_json', '1');
