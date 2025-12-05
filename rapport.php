@@ -119,6 +119,7 @@ input, select { padding: 5px; margin: 5px; font-size: 1rem; }
     <a id="downloadLink" href="<?= htmlspecialchars('rapports/' . basename($_GET['file'])) ?>" download="<?= htmlspecialchars(basename($_GET['file'])) ?>">
         <button type="button" id="downloadBtn">Télécharger le rapport JSON</button>
     </a>
+	<button type="button" id="exportFilteredBtn">Exporter les données filtrées</button>
     <a href="index.php">
         <button type="button">Retour à l'accueil</button>
     </a>
@@ -299,6 +300,42 @@ if (downloadBtn) {
         // Sinon, le bouton reste actif et le téléchargement se fait normalement
     });
 }
+
+// ------------------------------------------------------
+// Exporter les données filtrées
+// ------------------------------------------------------
+const exportFilteredBtn = document.getElementById('exportFilteredBtn');
+
+exportFilteredBtn.addEventListener('click', () => {
+    if (!confirm("Voulez-vous vraiment télécharger les données filtrées ?")) {
+        return;
+    }
+
+    const filteredRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
+
+    const filteredData = filteredRows.map(row => {
+        return {
+            id: row.children[0].innerText,
+            file: row.children[1].innerText,
+            line: row.children[2].innerText,
+            severity: row.children[3].innerText.toLowerCase(),
+            message: row.children[4].innerText,
+            excerpt: row.children[5].innerText,
+            advice: row.children[6].innerText,
+            size: row.children[7].innerText.replace(' bytes','') || null
+        };
+    });
+
+    const blob = new Blob([JSON.stringify(filteredData, null, 4)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "rapport_filtré_<?= addslashes(basename($_GET['file'])) ?>";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
 </script>
 </body>
 </html>
