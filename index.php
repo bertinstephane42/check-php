@@ -4,44 +4,147 @@
 <meta charset="UTF-8">
 <title>Audit de sécurité PHP - OWASP Top 10 2021</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; color: #333; }
-h1 { text-align: center; }
-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
-th, td { padding: 10px; border: 1px solid #ccc; text-align: left; vertical-align: top; cursor: default; }
-th { background-color: #eee; cursor: pointer; }
-.high { background-color: #f8d7da; color: #721c24; }
-.medium { background-color: #fff3cd; color: #856404; }
-.low { background-color: #fffbe6; color: #665500; }
-.info { background-color: #d1ecf1; color: #0c5460; }
-pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, monospace; }
-.container { max-width: 1200px; margin: 0 auto; }
-button { padding: 10px 15px; margin: 5px; font-size: 1rem; cursor: pointer; }
-button:hover { opacity: 0.9; }
-input, select { padding: 5px; margin: 5px; font-size: 1rem; }
-.result { border:1px solid #ddd; margin:10px 0; padding:10px; border-radius:8px; background: #fff; }
-
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.5);
+/* ---------------------------------------------
+   STYLE GLOBAL — Cohérent avec rapport.php
+--------------------------------------------- */
+body { 
+    font-family: Arial, sans-serif; 
+    padding: 20px; 
+    background: #f4f4f4; 
+    color: #333; 
 }
+h1 { 
+    text-align: center; 
+}
+
+/* Conteneur principal */
+.container { 
+    max-width: 1200px; 
+    margin: 0 auto; 
+    background: #fff;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Boutons — mêmes styles que rapport.php */
+button { 
+    padding: 10px 15px; 
+    font-size: 1rem; 
+    cursor: pointer; 
+    border: none;
+    border-radius: 5px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: 0.2s;
+}
+button:hover { opacity: 0.9; }
+
+/* Bouton Aide */
+#helpBtn {
+    background-color: #1976d2;
+    color: white;
+}
+
+/* Bouton Analyser */
+button[type="submit"] {
+    background-color: #4caf50;
+    color: white;
+}
+
+/* Fichier + select */
+input, select { 
+    padding: 5px; 
+    margin: 5px 0; 
+    font-size: 1rem; 
+}
+
+/* Encadré des règles détectées */
+.rule-info {
+    display:inline-block; 
+    padding:8px 12px; 
+    background:#eef2f5; 
+    border-left:4px solid #007bff; 
+    border-radius:4px; 
+    color:#333; 
+    font-size:14px; 
+    font-weight:500;
+    margin-bottom: 20px;
+}
+
+/* Zones d’affichage des résultats */
+.result { 
+    border:1px solid #ddd; 
+    margin:10px 0; 
+    padding:10px; 
+    border-radius:8px; 
+    background: #fff; 
+}
+
+/* ---------------------------------------------
+   MODALE AIDE — Identique et cohérente rapport.php
+--------------------------------------------- */
+#helpModal {
+    display: none; /* reste cachée au chargement */
+    position: fixed;
+    top: 0; 
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+
+    /* pas de display:flex ici ! */
+    justify-content: center;
+    align-items: center;
+}
+
+
 .modal-content {
     background-color: #fff;
-    margin: 15% auto;
-    padding: 20px;
-    border-radius: 8px;
+    padding: 25px 30px;
     max-width: 600px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    width: 90%;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    animation: fadeInModal 0.25s ease-out;
+    position: relative;
 }
-.close-btn {
-    float: right;
-    font-size: 1.2rem;
-    font-weight: bold;
+
+/* Animation douce d’apparition */
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: #333;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* Bouton de fermeture */
+#closeHelp {
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 1rem;
+    display: block;
+    margin: 15px auto 0; /* centré */
+}
+
+.modal-content p {
+    line-height: 1.5;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+.modal-content ul {
+    margin-left: 20px;
 }
 </style>
 </head>
@@ -89,7 +192,6 @@ echo "<div style='display:inline-block; padding:8px 12px; margin-top:10px; backg
 <!-- Modale d'aide -->
 <div id="helpModal" class="modal">
     <div class="modal-content">
-        <span class="close-btn" id="closeHelp">&times;</span>
         <h2>À propos de la confidentialité et suppression des rapports</h2>
         <p>
             Toutes les informations envoyées sont traitées uniquement pour générer le rapport. 
@@ -126,6 +228,7 @@ echo "<div style='display:inline-block; padding:8px 12px; margin-top:10px; backg
                 Dans le cadre de ce TP, le rapport généré vous aide à détecter certaines vulnérabilités alignées avec OWASP 2021 pour apprendre à les corriger.
             </p>
         </div>
+		<button id="closeHelp">Fermer</button>
     </div>
 </div>
 
@@ -135,9 +238,15 @@ const helpBtn = document.getElementById('helpBtn');
 const modal = document.getElementById('helpModal');
 const closeBtn = document.getElementById('closeHelp');
 
-helpBtn.onclick = () => modal.style.display = 'block';
-closeBtn.onclick = () => modal.style.display = 'none';
-window.onclick = (e) => { if(e.target === modal) modal.style.display = 'none'; }
+helpBtn.onclick = () => {
+    modal.style.display = "flex"; // AU LIEU DE "block"
+};
+
+closeBtn.onclick = () => modal.style.display = "none";
+
+window.onclick = (e) => {
+    if (e.target === modal) modal.style.display = "none";
+};
 
 // Gestion du stockage local pour la case à cocher
 const deleteCheckbox = document.getElementById('delete_report');

@@ -106,9 +106,135 @@ th { background-color: #eee; cursor: pointer; }
 .info { background-color: #d1ecf1; color: #0c5460; }
 pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, monospace; }
 .container { max-width: 1200px; margin: 0 auto; }
-button { padding: 10px 15px; margin: 5px; font-size: 1rem; cursor: pointer; }
 button:hover { opacity: 0.9; }
 input, select { padding: 5px; margin: 5px; font-size: 1rem; }
+/* Boutons généraux */
+button { 
+    padding: 10px 15px; 
+    font-size: 1rem; 
+    cursor: pointer; 
+    border: none;
+    border-radius: 5px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+button:hover { opacity: 0.9; }
+
+/* Conteneur des boutons */
+p { 
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: wrap; 
+    margin-bottom: 20px;
+}
+p button { margin: 0; }
+
+/* Bouton Retour */
+.btn-retour {
+    background-color: #e3e7eb;
+    color: #1a2a33;
+}
+
+/* Bouton Aide */
+.btn-help {
+    background-color: #1976d2;
+    color: white;
+}
+
+/* Bouton Télécharger */
+#downloadBtn {
+    background-color: #4caf50;
+    color: white;
+}
+
+/* Bouton Exporter données filtrées */
+#exportFilteredBtn {
+    background-color: #ff9800;
+    color: white;
+}
+/* --- Modale d'aide --- */
+#helpModal {
+    display: none;
+    position: fixed;
+    top: 0; 
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+
+    /* centrer uniquement quand elle est affichée */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Contenu de la fenêtre modale */
+.help-content {
+    background: #ffffff;
+    padding: 25px 30px;
+    max-width: 600px;
+    width: 90%;
+    border-radius: 12px;
+
+    /* cohérence visuelle : même style que tables et boutons */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    position: relative;
+    animation: fadeInModal 0.25s ease-out;
+}
+
+/* Animation douce d'apparition */
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Titre cohérent */
+.help-content h2 {
+    margin-top: 0;
+    color: #333;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* Paragraphes plus lisibles */
+.help-content p {
+    line-height: 1.5;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+/* Style du bouton "Fermer" cohérent */
+#closeHelp {
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: block;
+    margin: 15px auto 0; /* centré */
+}
+
+#closeHelp:hover {
+    opacity: 0.9;
+}
+
+/* Conteneur principal : réduire au minimum les marges pour plus de place au tableau */
+.container {
+    max-width: 95%;       /* occupe toute la largeur disponible */
+    margin: 0 auto;
+    padding-left: 10px;     /* marge minimale à gauche */
+    padding-right: 10px;    /* marge minimale à droite */
+}
+
+/* Table : conserver la largeur fixe des colonnes */
+table {
+    width: 100%;
+    table-layout: fixed;  
+    word-wrap: break-word;
+    overflow-x: auto;      /* scroll horizontal si nécessaire */
+}
 </style>
 </head>
 <body>
@@ -116,15 +242,18 @@ input, select { padding: 5px; margin: 5px; font-size: 1rem; }
 <h1>Rapport d'audit PHP - OWASP 2021</h1>
 
 <p>
-    <a id="downloadLink" href="<?= htmlspecialchars('rapports/' . basename($_GET['file'])) ?>" download="<?= htmlspecialchars(basename($_GET['file'])) ?>">
+    <a id="downloadLink" href="<?= htmlspecialchars('rapports/' . basename($_GET['file'])) ?>" 
+       download="<?= htmlspecialchars(basename($_GET['file'])) ?>">
         <button type="button" id="downloadBtn">Télécharger le rapport JSON</button>
     </a>
-	<button type="button" id="exportFilteredBtn">Exporter les données filtrées</button>
+
+    <button type="button" id="exportFilteredBtn">Exporter les données filtrées</button>
+
     <a href="index.php">
-        <button type="button">Retour à l'accueil</button>
+        <button type="button" class="btn-retour">Retour à l'accueil</button>
     </a>
-	<!-- Bouton Aide -->
-	<button type="button" id="helpBtn">Aide</button>
+
+    <button type="button" class="btn-help" id="helpBtn">Aide</button>
 </p>
 
 <?php if (empty($results)): ?>
@@ -162,7 +291,13 @@ input, select { padding: 5px; margin: 5px; font-size: 1rem; }
             <?php foreach ($results as $item): ?>
                 <tr class="<?= severityClass($item['severity']) ?>">
                     <td><?= htmlspecialchars(is_scalar($item['id']) ? $item['id'] : '-') ?></td>
-					<td><?= htmlspecialchars(is_scalar($item['file']) ? $item['file'] : '-') ?></td>
+					<td>
+					<?= htmlspecialchars(
+						is_scalar($item['file'])
+							? preg_replace('#^.*/uploads/[^/]+/#', '', $item['file'])
+							: '-'
+					) ?>
+					</td>
 					<td><?= htmlspecialchars(is_numeric($item['line']) ? $item['line'] : '-') ?></td>
 					<td><?= htmlspecialchars(ucfirst(is_scalar($item['severity']) ? $item['severity'] : '-')) ?></td>
 					<td><?= htmlspecialchars(is_scalar($item['message']) ? $item['message'] : '-') ?></td>
@@ -177,15 +312,19 @@ input, select { padding: 5px; margin: 5px; font-size: 1rem; }
 </div>
 
 <!-- Modale d'aide -->
-<div id="helpModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
-     background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
-    <div style="background:#fff; padding:20px; max-width:600px; width:90%; border-radius:10px; position:relative;">
-        <h2>Aide - Utilisation du rapport</h2>
-        <p><strong>Tri par colonne :</strong> Cliquez sur l'entête d'une colonne (ID, Fichier, Gravité, etc.) pour trier les résultats. Cliquez à nouveau pour inverser l'ordre.</p>
+<div id="helpModal">
+    <div class="help-content">
+        <h2>Aide – Utilisation du rapport</h2>
+
+        <p><strong>Tri par colonne :</strong> Cliquez sur l’en-tête d’une colonne (ID, Fichier, Gravité, etc.) pour trier les résultats. Cliquez à nouveau pour inverser l’ordre.</p>
+
         <p><strong>Filtre par gravité :</strong> Sélectionnez la gravité (High, Medium, Low, Info) pour ne voir que les vulnérabilités correspondantes.</p>
+
         <p><strong>Filtre par mot-clé :</strong> Saisissez un mot-clé (SQL, XSS, eval...) pour filtrer les vulnérabilités contenant ce terme.</p>
-        <p><strong>Utilité :</strong> Ces fonctions permettent de prioriser et analyser rapidement les vulnérabilités selon leur criticité et type. En entreprise, cela correspond à un processus OWASP 2021 de gestion et traitement des vulnérabilités pour sécuriser le code et réduire les risques d’exploitation.</p>
-        <button id="closeHelp" style="margin-top:10px;">Fermer</button>
+
+        <p><strong>Utilité :</strong> Ces fonctions permettent de prioriser et analyser rapidement les vulnérabilités selon leur criticité. Cela s’inscrit dans une démarche OWASP 2021 pour identifier, classer et réduire les risques d’exploitation liés au code.</p>
+
+        <button id="closeHelp">Fermer</button>
     </div>
 </div>
 
