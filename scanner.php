@@ -347,12 +347,12 @@ if (!defined('SCANNER_ENTRY')) {
 			'message' => 'Séquence ../ construite avec données utilisateur — path traversal (OWASP A5).'
 		],
 
-		// 41. Contenu de session affiché
+		// 41. Exposition de données de session réellement sensibles
 		[
-			'id' => 'SESSION_ID_EXPOSED',
-			'regex' => '/echo\s*\$_SESSION\[.*?\]/i',
-			'level' => 'high',
-			'message' => 'Contenu de la session affiché directement.'
+			'id'      => 'SESSION_SENSITIVE_EXPOSED',
+			'regex'   => '/echo\s+(\$_SESSION\[(\'|")(password|token|secret|key|auth|user|login)/i',
+			'level'   => 'high',
+			'message' => 'Affichage d’une donnée de session sensible (mot de passe, token, secret…).'
 		],
 
 		// 42. Comparaison de mot de passe en clair
@@ -459,12 +459,12 @@ if (!defined('SCANNER_ENTRY')) {
 			'message' => 'Adresse IP codée en dur détectée — A6:2021. Préférer une configuration centralisée.'
 		],
 
-		// 55. die() avec message — A6:2021
+		// 55. die() avec message potentiellement sensible — A6:2021
 		[
-			'id' => 'USE_OF_DIE_WITH_MESSAGE',
-			'regex' => '/die\s*\(\s*[\'"]/i',
-			'level' => 'low',
-			'message' => 'die() avec message — A6:2021. Peut divulguer des informations sensibles.'
+			'id'      => 'USE_OF_DIE_WITH_DYNAMIC_MESSAGE',
+			'regex'   => '/die\s*\(\s*(\$|\w+\s*\(|".*\$|\'.*\$)/i',
+			'level'   => 'medium',
+			'message' => 'die() avec message dynamique — risque de divulgation d’informations internes.'
 		],
 
 		// 56. allow_url_include activé — A6:2021
@@ -646,10 +646,39 @@ function scan_project($root) {
                 ];
             }
 
+			// Heuristique AST : die() avec variable concaténée
+			if (preg_match('/die\s*\(\s*\$[^)]*\./i', $line)) {
+				$results[] = [
+					'file'      => $path,
+					'line'      => $lineNumber + 1,
+					'excerpt'   => $trimmedLine,
+					'severity'  => 'medium',
+					'message'   => 'die() utilise une concaténation — message potentiellement sensible.',
+					'id'        => 'DIE_CONCAT_WARNING',
+					'size'      => $fileSize
+				];
+			}
+
+			// Heuristique AST : echo $_SESSION + variable dynamique
+			if (preg_match('/echo\s*\$_SESSION\[[^\]]*\]/i', $line) &&
+				preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
+
+				$results[] = [
+					'file'      => $path,
+					'line'      => $lineNumber + 1,
+					'excerpt'   => $trimmedLine,
+					'severity'  => 'high',
+					'message'   => 'Affichage d’une donnée de session indexée par entrée utilisateur.',
+					'id'        => 'SESSION_INDEXED_BY_USER_INPUT',
+					'size'      => $fileSize
+				];
+			}
+
+
             // ============================================
             // Heuristique bonus : détection SQLi simple
             // ============================================
-            if (preg_match('/SELECT|INSERT|UPDATE|DELETE/i', $line) &&
+            if (preg_match('/\b(SELECT|INSERT|UPDATE|DELETE)\b/i', $line) &&
                 preg_match('/\$_(GET|POST|REQUEST|COOKIE)/i', $line)) {
                 $results[] = [
                     'file'      => $path,
