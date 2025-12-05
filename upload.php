@@ -73,7 +73,7 @@ if (!move_uploaded_file($_FILES['zipfile']['tmp_name'], $uploadPath)) {
 }
 
 // =============================
-//  Vérification + extraction ZIP
+//  Vérification + extraction ZIP sécurisée
 // =============================
 $zip = new ZipArchive();
 
@@ -81,53 +81,63 @@ if ($zip->open($uploadPath) !== TRUE) {
     die('Erreur : impossible d’ouvrir le fichier ZIP.');
 }
 
-// Vérifie que l'archive contient au moins un fichier PHP
+$allowedExtensions = ['php','html','htm','css','js','txt','json','xml'];
 $containsPHP = false;
 
 for ($i = 0; $i < $zip->numFiles; $i++) {
     $entry = $zip->getNameIndex($i);
 
-    // Détection d'au moins un fichier PHP
-    if (preg_match('/\.php$/i', $entry)) {
-        $containsPHP = true;
-    }
+    // Normalisation du chemin
+    $normalizedEntry = str_replace(['\\', '../', '..\\'], ['/', '', ''], $entry);
 
-    // Directory traversal
-    if (strpos($entry, '../') !== false || strpos($entry, '..\\') !== false) {
-        $zip->close();
-        die('Erreur : le ZIP contient des chemins non autorisés (../).');
-    }
-
-    // Chemins absolus
-    if (preg_match('/^[A-Z]:/i', $entry) || substr($entry, 0, 1) === '/') {
+    // Chemins absolus interdits
+    if (preg_match('/^[A-Z]:/i', $normalizedEntry) || substr($normalizedEntry, 0, 1) === '/') {
         $zip->close();
         die('Erreur : chemins absolus interdits.');
     }
+
+    // Vérifie si c'est un dossier (terminé par '/')
+    $isDir = substr($normalizedEntry, -1) === '/';
+    if ($isDir) continue; // on ignore les dossiers pour la vérification d'extension
+
+    // Vérification extension autorisée
+    $ext = strtolower(pathinfo($normalizedEntry, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExtensions, true)) {
+        $zip->close();
+        die("Erreur : extension de fichier non autorisée détectée ($ext).");
+    }
+
+    // Vérifie la présence d’au moins un fichier PHP
+    if ($ext === 'php') {
+        $containsPHP = true;
+    }
 }
 
-// Si aucun fichier PHP n’a été trouvé → rejet
+// Rejet si aucun PHP
 if (!$containsPHP) {
     $zip->close();
     die('Erreur : l’archive doit contenir au moins un fichier PHP.');
 }
 
+// Extraction sécurisée fichier par fichier
 for ($i = 0; $i < $zip->numFiles; $i++) {
     $entry = $zip->getNameIndex($i);
+    $normalizedEntry = str_replace(['\\', '../', '..\\'], ['/', '', ''], $entry);
 
-    // Directory traversal
-    if (strpos($entry, '../') !== false || strpos($entry, '..\\') !== false) {
-        $zip->close();
-        die('Erreur : le ZIP contient des chemins non autorisés (../).');
+    // Ignorer les dossiers
+    if (substr($normalizedEntry, -1) === '/') continue;
+
+    $targetPath = $extractDir . $normalizedEntry;
+    $targetDir  = dirname($targetPath);
+
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
     }
 
-    // Chemins absolus
-    if (preg_match('/^[A-Z]:/i', $entry) || substr($entry, 0, 1) === '/') {
-        $zip->close();
-        die('Erreur : chemins absolus interdits.');
-    }
+    // Lecture depuis le ZIP et écriture dans le dossier d’extraction
+    copy("zip://$uploadPath#$entry", $targetPath);
 }
 
-$zip->extractTo($extractDir);
 $zip->close();
 
 // ===================================
