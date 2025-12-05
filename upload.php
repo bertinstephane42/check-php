@@ -81,7 +81,7 @@ if ($zip->open($uploadPath) !== TRUE) {
     die('Erreur : impossible d’ouvrir le fichier ZIP.');
 }
 
-$allowedExtensions = ['php','html','htm','css','js','txt','json','xml','htaccess','lock'];
+$allowedExtensions = ['php','html','htm','css','js','txt','json','xml','htaccess','lock','sqlite'];
 $containsPHP = false;
 
 for ($i = 0; $i < $zip->numFiles; $i++) {
